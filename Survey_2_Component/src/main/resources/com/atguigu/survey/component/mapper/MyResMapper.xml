@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.atguigu.survey.component.mapper.MyResMapper" >
+  <resultMap id="BaseResultMap" type="com.atguigu.survey.entities.manager.MyRes" >
+    <id column="res_id" property="resId" jdbcType="INTEGER" />
+    <result column="servlet_path" property="servletPath" jdbcType="VARCHAR" />
+    <result column="res_code" property="resCode" jdbcType="INTEGER" />
+    <result column="res_pos" property="resPos" jdbcType="INTEGER" />
+    <result column="public_status" property="publicStatus" jdbcType="BIT" />
+  </resultMap>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from my_res
+    where res_id = #{resId,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.atguigu.survey.entities.manager.MyRes" >
+    insert into my_res (res_id, servlet_path, res_code, 
+      res_pos, public_status)
+    values (#{resId,jdbcType=INTEGER}, #{servletPath,jdbcType=VARCHAR}, #{resCode,jdbcType=INTEGER}, 
+      #{resPos,jdbcType=INTEGER}, #{publicStatus,jdbcType=BIT})
+  </insert>
+  <update id="updateByPrimaryKey" parameterType="com.atguigu.survey.entities.manager.MyRes" >
+    update my_res
+    set servlet_path = #{servletPath,jdbcType=VARCHAR},
+      res_code = #{resCode,jdbcType=INTEGER},
+      res_pos = #{resPos,jdbcType=INTEGER},
+      public_status = #{publicStatus,jdbcType=BIT}
+    where res_id = #{resId,jdbcType=INTEGER}
+  </update>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select res_id, servlet_path, res_code, res_pos, public_status
+    from my_res
+    where res_id = #{resId,jdbcType=INTEGER}
+  </select>
+  <select id="selectAll" resultMap="BaseResultMap" >
+    select res_id, servlet_path, res_code, res_pos, public_status
+    from my_res
+  </select>
+  
+  
+  <insert id="batchSaveRes">
+  	insert into my_res ( servlet_path, res_code, 
+      res_pos, public_status)
+    values 
+    <foreach collection="list" item="res" separator=",">
+    ( #{res.servletPath,jdbcType=VARCHAR}, #{res.resCode,jdbcType=INTEGER}, 
+      #{res.resPos,jdbcType=INTEGER}, #{res.publicStatus,jdbcType=BIT})
+  	</foreach>
+  </insert>
+</mapper>

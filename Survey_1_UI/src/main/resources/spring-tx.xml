@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:cache="http://www.springframework.org/schema/cache"
+	xsi:schemaLocation="http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-4.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd">
+
+	<!-- 配置自动扫描的包 -->
+	<context:component-scan base-package="com.atguigu.survey.component.*">
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+
+	<!-- 读取外部属性文件 -->
+	<context:property-placeholder location="classpath:jdbc.properties" />
+
+	<!-- 配置数据源 -->
+	<bean id="comboPooledDataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" abstract="true">
+		<property name="user" value="${jdbc.user}" />
+		<property name="password" value="${jdbc.password}" />
+		<property name="driverClass" value="${jdbc.driver}" />
+	</bean>
+	
+	<bean id="mainDataSource" parent="comboPooledDataSource">
+		<property name="jdbcUrl" value="${survey_main.url}"></property>
+	</bean>
+	<bean id="logDataSource" parent="comboPooledDataSource">
+		<property name="jdbcUrl" value="${survey_log.url}"></property>
+	</bean>
+	
+	<bean id="surveyLogRouter" class="com.atguigu.survey.log.router.SurveyLogRouter">
+			<property name="targetDataSources" >
+					<map>
+						<entry key="survey_mainDataSource" value-ref="mainDataSource"></entry>
+						<entry key="survey_logDataSource" value-ref="logDataSource"></entry>
+					</map>
+			</property>
+			<property name="defaultTargetDataSource" ref="mainDataSource"></property>
+	</bean>
+	<!-- 配置SqlSessionFactory -->
+	<bean id="sqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!-- 装配数据源 -->
+		<property name="dataSource" ref="surveyLogRouter" />
+
+		<!-- 指定MyBatis自身配置文件位置 -->
+		<property name="configLocation" value="classpath:mybatis-config.xml" />
+
+		<!-- 指定实体类所在的包 -->
+		<property name="typeAliasesPackage" value="com.atguigu.survey.entities" />
+		
+		<property name="plugins">
+			<array>
+				<bean class="com.github.pagehelper.PageInterceptor">
+					<!-- 这里的几个配置主要演示如何使用，如果不理解，一定要去掉下面的配置 -->
+					<property name="properties">
+						<value>
+							helperDialect=mysql
+							reasonable=true
+							supportMethodsArguments=true
+							params=count=countSql
+							autoRuntimeDialect=true
+						</value>
+					</property>
+				</bean>
+			</array>
+		</property>
+
+	</bean>
+
+	<!-- 配置事务管理器 -->
+	<bean id="dataSourceTransactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="surveyLogRouter" />
+	</bean>
+	
+	<bean id="logRecorder" class="com.atguigu.survey.log.aspect.LogRecorder"></bean>
+	<!-- 日志切面 -->
+	<aop:config>
+		<aop:pointcut expression="(execution(* *..*Service.save*(..)) or
+		    execution(* *..*Service.insert*(..)) or execution(* *..*Service.remove*(..)) 
+		    or execution(* *..*Service.batch*(..)) or execution(* *..*Service.update*(..))  or execution(* *..*Service.move*(..))
+		     or execution(* *..*Service.copy*(..)) or execution(* *..*Service.regist*(..)))
+		    and !bean(logServiceImpl)" id="logRecorderPointcut"/>
+		<aop:aspect ref="logRecorder" order="1">
+			<aop:around method="recordLog"  pointcut-ref="logRecorderPointcut" />
+		</aop:aspect>
+	</aop:config>
+
+	<!-- 配置声明式事务 -->
+	<aop:config >
+		<!-- 配置事务切面的切入点表达式 -->
+		<aop:pointcut expression="execution(* *..*Service.*(..)) "
+			id="txPointcut" />
+		<!-- 将切入点表达式和事务通知关联起来 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut" order="2"/>
+		
+	</aop:config>
+
+	<!-- 配置事务通知 -->
+	<tx:advice id="txAdvice" transaction-manager="dataSourceTransactionManager">
+		<tx:attributes>
+			<!-- 所有的事务方法都必须在tx:method这里明确配置才生效，否则就没有事务 -->
+			<!-- 方法名使用“*”通配符或完整名称都可以 -->
+			<tx:method name="get*" read-only="true" propagation="REQUIRED" />
+
+			<!-- Spring的声明式事务默认仅对运行时异常回滚，如果发生编译时异常不回滚 -->
+			<!-- 所以我们应该配置rollback-for="java.lang.Exception"对所有异常都回滚 -->
+			<tx:method name="save*" rollback-for="java.lang.Exception"
+				propagation="REQUIRED" />
+
+			<!-- Spring的声明式事务默认使用的传播行为是：REQUIRED，含义是：必须在事务中运行，但如果已经有事务则在现有事务中运行，不开启新事务 -->
+			<!-- 在其他事务中运行的风险是：如果同一个事务中的其他操作回滚了，当前操作也会被连累。 -->
+			<!-- 所以应该使用REQUIRES_NEW，必须运行在事务中，且必须开启新事务。 -->
+			<tx:method name="update*" rollback-for="java.lang.Exception"
+				propagation="REQUIRES_NEW" />
+			<tx:method name="remove*" rollback-for="java.lang.Exception"
+				propagation="REQUIRES_NEW" />
+			<tx:method name="regist*" rollback-for="java.lang.Exception"
+				propagation="REQUIRES_NEW" />
+			<tx:method name="insert*" rollback-for="java.lang.Exception"
+				propagation="REQUIRED" />
+			<tx:method name="save*" rollback-for="java.lang.Exception"
+				propagation="REQUIRED" />
+			<tx:method name="copy*" rollback-for="java.lang.Exception"
+			propagation="REQUIRED" />
+			<tx:method name="move*" rollback-for="java.lang.Exception"
+			propagation="REQUIRED" />
+			<tx:method name="batch*" rollback-for="java.lang.Exception"
+			propagation="REQUIRED" />
+			<tx:method name="find*" rollback-for="java.lang.Exception"
+			propagation="REQUIRED" />
+			<tx:method name="insertLog" rollback-for="java.lang.Exception"
+				propagation="REQUIRES_NEW" />
+			<tx:method name="AutoCreateLogTable" rollback-for="java.lang.Exception"
+			propagation="REQUIRED" />
+				<tx:method name="show*" rollback-for="java.lang.Exception"
+			propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+	
+	
+	
+	<!-- 配置Mapper的扫描器 -->
+	<bean id="mapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.atguigu.survey.component.mapper" />
+	</bean>
+
+	<!-- 监听器用于容器启动时创建初始的日志表 -->
+	<bean id="createTableListener" class="com.atguigu.survey.log.listener.CreateTableListener"></bean>
+	<!-- 石英调度 -->
+	<bean id="jobDetailBean" class="org.springframework.scheduling.quartz.JobDetailBean">
+		<property name="jobClass" value="com.atguigu.survey.log.quartz.CreateLogTableQuartz"></property>
+		<property name="jobDataMap">
+				<map>
+					<entry key="logService" value-ref="logServiceImpl"></entry>
+				</map>
+		</property>
+	</bean>
+	
+	<bean id="cronTriggerBean" class="org.springframework.scheduling.quartz.CronTriggerBean">
+			<property name="cronExpression" value="0 0 15 * * ? "></property>
+			<property name="jobDetail" ref="jobDetailBean"></property>
+	</bean>
+	<bean id="schedulerFactoryBean" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="cronTriggerBean"/>
+			</list>
+		</property>
+	</bean>
+	
+	
+	<!-- 二级缓存 -->
+	<bean id="myEhcacheKey" class="com.atguigu.survey.ehcache.MyEhcacheKey"></bean>
+	<bean id="ehCacheManagerFactoryBean" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
+		<property name="configLocation" value="classpath:ehcache.xml"></property>
+	</bean>
+	<bean id="ehCacheCacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
+		<property name="cacheManager" ref="ehCacheManagerFactoryBean"></property>
+	</bean>
+	<aop:config>
+		<aop:pointcut expression="execution(* *..EngageService.showAllAvailablesurvey(..))
+		 or execution(* *..EngageService.getSurveDeeply(..)) 
+		  or execution(* *..SurveyService.completeSurvey(..))
+		   or execution(* *..ResService.showList(..)) or execution(* *..ResService.findResByServletPath(..))  " 
+		    id="cachePointcut"/>
+		<aop:advisor advice-ref="cacheAdvice" pointcut-ref="cachePointcut"  order="0"/>
+		
+	</aop:config>
+		
+	<cache:advice id="cacheAdvice" cache-manager="ehCacheCacheManager" key-generator="myEhcacheKey">
+		<cache:caching cache="surveyCache">
+			<cache:cacheable method="showList"/>
+			<cache:cacheable method="getSurveDeeply"/>
+			<cache:cacheable method="findResByServletPath"/>
+		</cache:caching>
+		
+		<cache:caching cache="surveyCacheEvict">
+				<cache:cacheable method="showAllAvailablesurvey"/>
+				<cache:cache-evict method="completeSurvey" all-entries="true"/>
+		</cache:caching>
+	</cache:advice>
+	
+	
+	
+	
+</beans>

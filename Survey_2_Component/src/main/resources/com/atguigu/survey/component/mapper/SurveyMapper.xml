@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.atguigu.survey.component.mapper.SurveyMapper" >
+  <resultMap id="BaseResultMap" type="com.atguigu.survey.entities.guest.Survey" >
+    <id column="survey_id" property="surveyId" jdbcType="INTEGER" />
+    <result column="survey_name" property="surveyName" jdbcType="CHAR" />
+    <result column="survey_complete" property="surveyComplete" jdbcType="BIT" />
+    <result column="logo_path" property="logoPath" jdbcType="CHAR" />
+    <result column="user_id" property="userId" jdbcType="INTEGER" />
+  </resultMap>
+  
+  
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from guest_survey
+    where survey_id = #{surveyId,jdbcType=INTEGER}
+  </delete>
+  
+  <insert id="insert" parameterType="com.atguigu.survey.entities.guest.Survey" >
+    insert into guest_survey (survey_id, survey_name, survey_complete, 
+      logo_path, user_id)
+    values (#{surveyId,jdbcType=INTEGER}, #{surveyName,jdbcType=CHAR}, #{surveyComplete,jdbcType=BIT}, 
+      #{logoPath,jdbcType=CHAR}, #{userId,jdbcType=INTEGER})
+  </insert>
+  
+  <update id="updateByPrimaryKey" parameterType="com.atguigu.survey.entities.guest.Survey" >
+    update guest_survey
+    set
+    <if test="surveyName!=null">
+     	survey_name = #{surveyName,jdbcType=CHAR}
+     </if>
+     <if test="surveyComplete!=null">
+     	, survey_complete = #{surveyComplete,jdbcType=BIT}
+     </if>
+     <if test="logoPath!=null">
+      	,logo_path = #{logoPath,jdbcType=CHAR}
+      </if>
+      <if test="userId!=null">
+     	,user_id = #{userId,jdbcType=INTEGER}
+     </if>
+   		 where survey_id = #{surveyId,jdbcType=INTEGER}
+  </update>
+  
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select survey_id, survey_name, survey_complete, logo_path, user_id
+    from guest_survey
+    where survey_id = #{surveyId,jdbcType=INTEGER}
+  </select>
+  
+  <select id="selectAll" resultMap="BaseResultMap" >
+    select survey_id, survey_name, survey_complete, logo_path, user_id
+    from guest_survey
+  </select>
+  
+  <select id="selectAllAvailablesurvey" resultMap="BaseResultMap">
+  	 select survey_id, survey_name, survey_complete, logo_path, user_id
+    from guest_survey where survey_complete=true
+  </select>
+  
+  <select id="selectAllMySurvey" resultType="com.atguigu.survey.entities.guest.Survey">
+  	select survey_id, survey_name, survey_complete, logo_path, user_id
+    from guest_survey where user_id=#{userId} and survey_complete=#{surveyComplete} order by survey_id desc
+  </select>
+  
+  
+  
+  <resultMap type="com.atguigu.survey.entities.guest.Survey" id="getSurveDeeplyInfo">
+  	<id column="survey_id" property="surveyId"/>
+  	<result column="survey_name" property="surveyName"/>
+  	<result column="survey_complete" property="surveyComplete"/>
+  	<result column="logo_path" property="logoPath"/>
+  	<result column="user_id" property="userId"/>
+  	<collection property="bags" ofType="com.atguigu.survey.entities.guest.Bag" >
+  		<id column="bag_id" property="bagId"/>
+  		<result column="bag_name" property="bagName"/>
+  		<result column="bag_order" property="bagOrder"/>
+  		<!-- <result column="survey_id" property="surveyId"/> -->
+  		<collection property="questions" ofType="com.atguigu.survey.entities.guest.Question">
+  			<id column="question_id" property="questionId"/>
+  			<result column="question_name" property="questionName"/>
+  			<result column="question_type" property="questionType"/>
+  			<result column="question_options" property="questionOptions"/>
+  			<!-- <result column="bag_id" property="bagId"/> -->
+  			<!-- <collection property="answers" ofType="com.atguigu.survey.entities.guest.Answer">
+  				<id column="answer_id" property="answerId"/>
+  				<result column="answer_content" property="answerContent"/>
+  				<result column="answer_uuid" property="answerUuid"/>
+  				<result column="survey_id" property="surveyId"/>
+  				<result column="question_id" property="questionId"/>
+  			</collection> -->
+  		</collection>
+  	</collection>
+  </resultMap>
+  
+  <select id="getSurveDeeply" resultMap="getSurveDeeplyInfo">
+  	SELECT 
+
+	guest_survey.survey_id, 
+	guest_survey.survey_name, 
+	guest_survey.survey_complete, 
+	guest_survey.logo_path, 
+	guest_survey.user_id,
+	
+  	guest_bag.bag_id,
+  	guest_bag.bag_name, 
+  	guest_bag.bag_order,
+  	guest_bag.survey_id,
+  	
+  	guest_question.question_id, 
+	guest_question.question_name, 
+	guest_question.question_type, 
+	guest_question.question_options, 
+	guest_question.bag_id
+	
+  	<!-- guest_answer.answer_id, 
+	guest_answer.answer_content, 
+	guest_answer.answer_uuid, 
+	guest_answer.survey_id, 
+	guest_answer.question_id -->
+    FROM
+    guest_survey LEFT JOIN guest_bag ON guest_survey.survey_id = guest_bag.survey_id
+    LEFT JOIN guest_question ON guest_bag.bag_id=guest_question.bag_id
+    <!-- LEFT JOIN  guest_answer ON guest_question.question_id=guest_answer.question_id --> WHERE guest_survey.survey_id=#{surveyId} ORDER BY guest_bag.bag_order desc
+  </select>
+  
+  <update id="completeSurvey">
+  	
+	UPDATE guest_survey 
+		SET
+		survey_complete =TRUE  
+		WHERE
+		survey_id = #{surveyId} ;
+  </update>
+</mapper>

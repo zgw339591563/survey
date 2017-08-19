@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.atguigu.survey.component.mapper.BagMapper" >
+  <resultMap id="BaseResultMap" type="com.atguigu.survey.entities.guest.Bag" >
+    <id column="bag_id" property="bagId" jdbcType="INTEGER" />
+    <result column="bag_name" property="bagName" jdbcType="CHAR" />
+    <result column="bag_order" property="bagOrder" jdbcType="INTEGER" />
+    <result column="survey_id" property="surveyId" jdbcType="INTEGER" />
+  </resultMap>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from guest_bag
+    where bag_id = #{bagId,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.atguigu.survey.entities.guest.Bag"  useGeneratedKeys="true" keyProperty="bagId">
+  
+    insert into guest_bag ( bag_name, bag_order, 
+      survey_id)
+    values ( #{bagName,jdbcType=CHAR}, #{bagOrder,jdbcType=INTEGER}, 
+      #{surveyId,jdbcType=INTEGER})
+  </insert>
+  <update id="updateByPrimaryKey" parameterType="com.atguigu.survey.entities.guest.Bag" >
+  	
+    update guest_bag
+    set 
+    <if test="bagName!=null">
+    bag_name = #{bagName,jdbcType=CHAR}
+    </if>
+    <if test="bagOrder!=null">
+      ,bag_order = #{bagOrder,jdbcType=INTEGER}
+     </if>
+     <if test="surveyId!=null">
+      ,survey_id = #{surveyId,jdbcType=INTEGER}
+      </if>
+    where bag_id = #{bagId,jdbcType=INTEGER}
+  </update>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select bag_id, bag_name, bag_order, survey_id
+    from guest_bag
+    where bag_id = #{bagId,jdbcType=INTEGER}
+  </select>
+  <select id="selectAll" resultMap="BaseResultMap" >
+    select bag_id, bag_name, bag_order, survey_id
+    from guest_bag
+  </select>
+  
+  <select id="selectMaxbagOrder" resultType="int">
+  		SELECT
+  		MAX(bag_order)
+		FROM guest_bag
+  </select>
+  
+  <select id="selectBySurveyId" resultType="com.atguigu.survey.entities.guest.Bag">
+  	SELECT 	bag_id, 
+	bag_name, 
+	bag_order, 
+	survey_id
+	 
+	FROM 
+	survey_main.guest_bag  WHERE survey_id=#{surveyId}
+  </select>
+  
+  
+  <resultMap type="com.atguigu.survey.entities.guest.Bag" id="selectBagDeeplyresultMap">
+  		<id column="bag_id" property="bagId" jdbcType="INTEGER" />
+    	<result column="bag_name" property="bagName" jdbcType="CHAR" />
+    	<result column="bag_order" property="bagOrder" jdbcType="INTEGER" />
+    	<result column="survey_id" property="surveyId" jdbcType="INTEGER" />
+    	<collection property="questions" ofType="com.atguigu.survey.entities.guest.Question">
+    		<id column="question_id" property="questionId" jdbcType="INTEGER" />
+		    <result column="question_name" property="questionName" jdbcType="CHAR" />
+		    <result column="question_type" property="questionType" jdbcType="INTEGER" />
+		    <result column="question_options" property="questionOptions" jdbcType="CHAR" />
+		     <result column="bag_id" property="bagId" jdbcType="INTEGER" />
+    	</collection>
+  </resultMap>
+  <select id="selectBagDeeply" resultMap="selectBagDeeplyresultMap">
+  
+  	SELECT 	
+  	b.bag_id, 
+	b.bag_name, 
+	b.bag_order, 
+	b.survey_id,
+	q.question_id, 
+	q.question_name, 
+	q.question_type, 
+	q.question_options,
+	q.bag_id
+	FROM 
+	guest_bag b LEFT JOIN guest_question q ON b.bag_id=q.bag_id WHERE b.bag_id=#{bagId}
+  </select>
+  
+  
+  	<update id="updateBags"  parameterType="java.util.List">  
+	    <foreach collection="bags" item="bag"   separator=";">
+	        update guest_bag
+	        <set>
+				bag_order = #{bag.bagOrder}  
+	        </set>
+	        where bag_id = ${bag.bagId}
+	    </foreach>      
+    </update>
+  
+  
+</mapper>

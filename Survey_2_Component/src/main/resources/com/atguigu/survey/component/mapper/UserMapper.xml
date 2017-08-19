@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.atguigu.survey.component.mapper.UserMapper" >
+  <resultMap id="BaseResultMap" type="com.atguigu.survey.entities.guest.User" >
+    <id column="user_id" property="userId" jdbcType="INTEGER" />
+    <result column="user_name" property="userName" jdbcType="CHAR" />
+    <result column="user_pwd" property="userPwd" jdbcType="CHAR" />
+    <result column="company" property="company" jdbcType="BIT" />
+    <result column="code_arr" property="codeArr" jdbcType="CHAR" />
+  </resultMap>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer" >
+    delete from guest_user
+    where user_id = #{userId,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.atguigu.survey.entities.guest.User"  useGeneratedKeys="true" keyProperty="userId">
+    insert into guest_user (user_id, user_name, user_pwd, 
+      company, code_arr)
+    values (#{userId,jdbcType=INTEGER}, #{userName,jdbcType=CHAR}, #{userPwd,jdbcType=CHAR}, 
+      #{company,jdbcType=BIT}, #{codeArr,jdbcType=CHAR})
+  </insert>
+  <update id="updateByPrimaryKey" parameterType="com.atguigu.survey.entities.guest.User" >
+    update guest_user
+    set user_name = #{userName,jdbcType=CHAR},
+      user_pwd = #{userPwd,jdbcType=CHAR},
+      company = #{company,jdbcType=BIT},
+      code_arr = #{codeArr,jdbcType=CHAR}
+    where user_id = #{userId,jdbcType=INTEGER}
+  </update>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.Integer" >
+    select user_id, user_name, user_pwd, company, code_arr
+    from guest_user
+    where user_id = #{userId,jdbcType=INTEGER}
+  </select>
+  <select id="selectAll" resultMap="BaseResultMap" >
+    select user_id, user_name, user_pwd, company, code_arr
+    from guest_user
+  </select>
+  
+  <select id="checkUserNameExisit" resultType="int">
+  	 select  count(user_name)
+     from guest_user where user_name=#{userName}
+  </select>
+  
+  <select id="checkUserAndPassword" resultType="com.atguigu.survey.entities.guest.User">
+  	 SELECT 	user_id, 
+		user_name, 
+		user_pwd, 
+		company, 
+		code_arr
+		FROM 
+		survey_main.guest_user where  user_name LIKE  BINARY  #{userName} and user_pwd=#{userPwd}
+  </select>
+  
+  
+  <resultMap type="com.atguigu.survey.entities.manager.Role" id="getRoleListDeeplyByUserIdResultMap">
+  		 <id column="role_id" property="roleId" jdbcType="INTEGER" />
+    	<result column="role_name" property="roleName" jdbcType="CHAR" />
+    	<collection property="auths" ofType="com.atguigu.survey.entities.manager.Auth">
+    		<id column="auth_id" property="authId" jdbcType="INTEGER" />
+    		<result column="auth_name" property="authName" jdbcType="CHAR" />
+    		<collection property="resList" ofType="com.atguigu.survey.entities.manager.Res">
+    			<id column="res_id" property="resId" jdbcType="INTEGER" />
+			    <result column="servlet_path" property="servletPath" jdbcType="CHAR" />
+			    <result column="res_code" property="resCode" jdbcType="INTEGER" />
+			    <result column="res_pos" property="resPos" jdbcType="INTEGER" />
+			    <result column="public_status" property="publicStatus" jdbcType="BIT" />
+    		</collection>
+    	</collection>
+  
+  </resultMap>
+  <select id="getRoleListDeeplyByUserId" resultMap="getRoleListDeeplyByUserIdResultMap">
+  	SELECT 
+  		manager_role.role_id, 
+		manager_role.role_name,
+		manager_auth.auth_id,
+		manager_auth.auth_name,
+		manager_res.res_id,
+		manager_res.servlet_path,
+		manager_res.res_code,
+		manager_res.res_pos,
+		manager_res.public_status
+		FROM 
+		 inner_user_role  LEFT JOIN manager_role ON   inner_user_role.role_id=manager_role.role_id
+		 LEFT JOIN inner_role_auth ON manager_role.role_id=inner_role_auth.role_id 
+		 LEFT JOIN manager_auth ON inner_role_auth.auth_id=manager_auth.auth_id
+		 LEFT JOIN inner_auth_res ON manager_auth.auth_id=inner_auth_res.auth_id
+		 LEFT JOIN manager_res ON inner_auth_res.res_id=manager_res.res_id
+		WHERE inner_user_role.user_id=#{userId}
+  
+  </select>
+  
+  <update id="updateUserCodeArr">
+  		 update guest_user
+	    set
+	      code_arr = #{codeArr,jdbcType=CHAR}
+	    where user_id = #{userId,jdbcType=INTEGER}
+  </update>
+  
+  <insert id="insertUserAndRoleRelationship">
+  		INSERT INTO survey_main.inner_user_role 
+			(user_id,role_id)
+			VALUES
+			(#{userId},#{roleId})
+  </insert>
+</mapper>
